@@ -17,7 +17,7 @@ curl -Ls https://raw.githubusercontent.com/MagicatAI/magicat_node/main/H2_instal
 | 操作系统 | Linux （Ubuntu 20.04+ / Debian 11+） |
 | 最低配置 | 1核1G |
 | 权限 | root |
-| 端口 | 开放 UDP 443（Hysteria2 使用 QUIC/UDP） |
+| 端口 | 开放 UDP 443 |
 | 依赖 | `curl`、`openssl`（多数系统已预装） |
 
 > **注意**：Hysteria2 基于 UDP 协议，请确保云服务商的安全组 / 防火墙已放行 **UDP 443**。
