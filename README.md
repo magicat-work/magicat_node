@@ -20,7 +20,7 @@ curl -Ls https://raw.githubusercontent.com/MagicatAI/magicat_node/main/H2_instal
 | 端口 | 开放 UDP 443 |
 | 依赖 | `curl`、`openssl`（多数系统已预装） |
 
-> **注意**：Hysteria2 基于 UDP 协议，请确保云服务商的安全组 / 防火墙已放行 **UDP 443**。
+> **注意**：Hysteria2 基于 UDP 协议，请确保云服务商的安全组 / 防火墙已放行 **UDP 443**
 
 ---
 
