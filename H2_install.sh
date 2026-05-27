@@ -35,10 +35,7 @@ chown nobody "$SERVER_KEY" "$SERVER_CRT"
 chmod 600 "$SERVER_KEY" "$SERVER_CRT"
 
 # 提取公钥计算 SHA256
-SERVER_CRT_PIN=$(openssl x509 -in "$SERVER_CRT" -pubkey -noout \
-  | openssl pkey -pubin -outform DER \
-  | openssl dgst -sha256 -binary \
-  | base64)
+SERVER_CRT_PIN=$(openssl x509 -in certificate.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64)
 
 # sing-box 配置
 cat > "$SINGBOX_CONF" << EOF
