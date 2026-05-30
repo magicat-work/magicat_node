@@ -12,10 +12,10 @@ SERVER_IP=$(curl -s https://api.ipify.org)
 PASSWORD=$(openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 24)
 
 # 系统优化 (BBR)
-grep -q "tcp_congestion_control=bbr" /etc/sysctl.conf || {
+grep -q "net.core.default_qdisc=fq" /etc/sysctl.conf || \
   echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
+grep -q "net.ipv4.tcp_congestion_control=bbr" /etc/sysctl.conf || \
   echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
-}
 sysctl -p
 
 # 目录 & 内核
@@ -34,6 +34,10 @@ openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
 
 chown nobody "$SERVER_KEY" "$SERVER_CRT"
 chmod 600 "$SERVER_KEY" "$SERVER_CRT"
+
+CERT_PIN=$(openssl x509 -in "$SERVER_CRT" -outform der | openssl dgst -sha256 | awk '{print $2}')
+HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:443/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#MagicatNode"
+KEY_SHA256=$(openssl x509 -in "$SERVER_CRT" -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64)
 
 # sing-box 配置
 cat > "$SINGBOX_CONF" << EOF
@@ -104,11 +108,14 @@ echo "------------------------------"
 cat << EOF
 {
   "serverip": "${SERVER_IP}",
-  "password": "${PASSWORD}"
+  "password": "${PASSWORD}",
+  "keysha256": "${KEY_SHA256}"
 }
 EOF
+
 echo "------------------------------"
-echo "  自签名证书"
+echo "  v2rayN/v2rayNG 一键导入链接"
 echo "------------------------------"
-echo "  scp root@${SERVER_IP}:${SERVER_CRT} ."
+echo "  ${HY2_URI}"
 echo "------------------------------"
+
