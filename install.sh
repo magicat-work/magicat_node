@@ -2,7 +2,7 @@
 set -e
 
 # 参数
-DOWNLOAD_URL="https://github.com/MagicatAI/magicat_node/releases/download/node_v1.0.0.0/sing-box"
+DOWNLOAD_URL="https://github.com/MagicatAI/magicat_node/releases/download/node_1.0.0.0/sing-box"
 SINGBOX_BIN="/usr/local/bin/sing-box"
 SINGBOX_CONF="/etc/sing-box/config.json"
 SERVER_KEY="/etc/sing-box/server.key"
