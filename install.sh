@@ -4,8 +4,16 @@ trap 'echo "部署失败 (第 ${LINENO} 行)"; exit 1' ERR
 [ "$(id -u)" -eq 0 ] || exit 1
 umask 077
 
+# 自动检测架构
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64)        ARCH_TAG="node_amd64" ;;
+  aarch64|arm64) ARCH_TAG="node_arm64" ;;
+  *)             echo "不支持的架构: $ARCH"; exit 1 ;;
+esac
+
 # 参数
-DOWNLOAD_URL="https://github.com/MagicatAI/magicat_node/releases/download/node_1.0.0.0/sing-box"
+DOWNLOAD_URL="https://github.com/MagicatAI/magicat_node/releases/download/${ARCH_TAG}/sing-box"
 SINGBOX_BIN="/usr/local/bin/sing-box"
 SINGBOX_CONF="/etc/sing-box/config.json"
 SERVER_KEY="/etc/sing-box/server.key"
