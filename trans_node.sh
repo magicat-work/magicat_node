@@ -4,6 +4,11 @@ trap 'echo "部署失败 (第 ${LINENO} 行)"; exit 1' ERR
 [ "$(id -u)" -eq 0 ] || exit 1
 umask 077
 
+node_server_ip="$1"
+node_port="$2"
+node_password="$3"
+node_keysha256="$4"
+
 # 参数
 DOWNLOAD_URL="https://github.com/magicat-work/magicat_node/releases/download/amd64/sing-box"
 SINGBOX_BIN="/usr/local/bin/sing-box"
@@ -60,7 +65,18 @@ cat > "$SINGBOX_CONF" << EOF
     }
   ],
   "outbounds": [
-    { "type": "direct", "tag": "direct" }
+    {
+      "type": "hysteria2",
+      "server": "${node_server_ip}",
+      "server_port": ${node_port},
+      "password": "${node_password}",
+      "tls": {
+        "enabled": true,
+        "server_name": "cloudflare.com",
+        "certificate_public_key_sha256": "${node_keysha256}",
+        "insecure": true
+      }
+    }
   ]
 }
 EOF
@@ -103,7 +119,7 @@ systemctl status sing-box --no-pager
 echo "----------------"
 echo "# PC端配置"
 echo "----------------"
-printf '{"serverip":"%s", "port": %d, "password":"%s","keysha256":"%s"}\n' "$SERVER_IP" "$PORT" "$PASSWORD" "$KEY_SHA256"
+printf '{"serverip":"%s","port": %d,"password":"%s","keysha256":"%s"}\n' "$SERVER_IP" "$PORT" "$PASSWORD" "$KEY_SHA256"
 echo "----------------"
 echo "# v2rayN/v2rayNG"
 echo "----------------"
