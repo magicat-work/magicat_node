@@ -12,8 +12,9 @@ curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/instal
 
 ##  中转节点搭建
 ```bash
-curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/trans_node.sh | sudo bash -s -- '1.2.3.4' '443' 'abc123' 'xxxx=='
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/trans_node.sh | sudo bash -s -- 'serverip' 'port' 'password' 'keysha256'
 ```
+
 
 ## 服务器要求
 
