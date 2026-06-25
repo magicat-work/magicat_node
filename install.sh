@@ -14,6 +14,9 @@ SERVER_IP=$(curl -s https://api.ipify.org)
 PASSWORD=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 12)
 PORT=443
 
+# 专用系统用户
+id magicat &>/dev/null || useradd --system --no-create-home --shell /usr/sbin/nologin magicat
+
 # 系统优化 (BBR)
 grep -q "net.core.default_qdisc=fq" /etc/sysctl.conf || \
   echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
@@ -34,7 +37,7 @@ openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
   -days 3650 \
   -subj "/CN=cloudflare.com" \
   -addext "subjectAltName=IP:${SERVER_IP}"
-chown nobody "$SERVER_KEY" "$SERVER_CRT"
+chown magicat "$SERVER_KEY" "$SERVER_CRT"
 chmod 600 "$SERVER_KEY" "$SERVER_CRT"
 CERT_PIN=$(openssl x509 -in "$SERVER_CRT" -outform der | openssl dgst -sha256 -r | cut -d' ' -f1)
 HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#Magicat_Node"
@@ -64,10 +67,9 @@ cat > "$SINGBOX_CONF" << EOF
   ]
 }
 EOF
-chown -R nobody /etc/sing-box
+chown -R magicat /etc/sing-box
 chmod 700 /etc/sing-box
-chown nobody "$SINGBOX_CONF"
-chown nobody "$SINGBOX_BIN"
+chown magicat "$SINGBOX_CONF"
 chmod 600 "$SINGBOX_CONF"
 
 # Systemd 服务
@@ -77,7 +79,7 @@ Description=sing-box Service
 Documentation=https://sing-box.sagernet.org
 After=network.target nss-lookup.target
 [Service]
-User=nobody
+User=magicat
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
