@@ -33,7 +33,7 @@ sysctl -p || true
 mkdir -p /etc/sing-box
 systemctl stop sing-box 2>/dev/null || true
 curl -fL -o "$SINGBOX_BIN" "$DOWNLOAD_URL"
-chmod +x "$SINGBOX_BIN"
+chmod 755 "$SINGBOX_BIN"
 
 # 自签名证书
 openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
