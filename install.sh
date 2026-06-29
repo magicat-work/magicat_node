@@ -17,11 +17,16 @@ PORT=443
 # 专用系统用户
 id magicat &>/dev/null || useradd --system --no-create-home --shell /usr/sbin/nologin magicat
 
-# 系统优化 (BBR)
-grep -q "net.core.default_qdisc=fq" /etc/sysctl.conf || \
-  echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
-grep -q "net.ipv4.tcp_congestion_control=bbr" /etc/sysctl.conf || \
-  echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+# 系统优化 (BBR + UDP 缓冲)
+for line in \
+  "net.core.default_qdisc=fq" \
+  "net.ipv4.tcp_congestion_control=bbr" \
+  "net.core.rmem_max=33554432" \
+  "net.core.wmem_max=33554432" \
+  "net.core.rmem_default=1048576" \
+  "net.core.wmem_default=1048576"; do
+  grep -qF "$line" /etc/sysctl.conf || echo "$line" >> /etc/sysctl.conf
+done
 sysctl -p || true
 
 # 目录 & 内核
