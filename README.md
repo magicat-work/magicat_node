@@ -8,13 +8,17 @@
 curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/install.sh | sudo bash
 ```
 
----
 
-##  中转节点搭建
+## 中转节点搭建
 ```bash
 curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/trans_node.sh | sudo bash -s -- 'serverip' 'port' 'password' 'keysha256'
 ```
 
+## 卸载部署
+```bash
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/unins.sh | sudo bash
+```
+---
 
 ## 服务器要求
 
