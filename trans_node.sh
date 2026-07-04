@@ -170,7 +170,7 @@ systemctl status sing-box --no-pager
 
 # 客户端信息
 echo "----------------"
-echo "# PC端配置"
+echo "# Magicat配置"
 echo "----------------"
 printf '{"serverip":"%s", "port": %d, "password":"%s","keysha256":"%s"}\n' "$SERVER_IP" "$PORT" "$PASSWORD" "$KEY_SHA256"
 echo "----------------"
