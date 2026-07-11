@@ -160,9 +160,9 @@ printf '{"serverip":"%s", "port": %d, "password":"%s","keysha256":"%s"}\n' "$SER
 echo "----------------"
 echo "# v2rayN/v2rayNG"
 echo "----------------"
-echo "${HY2_URI}"
-echo "----------------"
 echo "${VLESS_URI}"
+echo "----------------"
+echo "${HY2_URI}"
 echo "----------------"
 
 # 运行 bash install.sh
