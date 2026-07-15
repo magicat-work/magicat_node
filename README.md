@@ -2,16 +2,10 @@
 
 ---
 
-## 快速搭建 Sing-box + Hysteria2 节点
+## 快速搭建 Sing-box 节点
 
 ```bash
 curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/install.sh | sudo bash
-```
-
-
-## 中转节点搭建
-```bash
-curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/trans_node.sh | sudo bash -s -- 'serverip' 'port' 'password' 'keysha256'
 ```
 
 ## 卸载部署
