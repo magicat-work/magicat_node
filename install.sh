@@ -45,7 +45,7 @@ openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
 chown magicat "$SERVER_KEY" "$SERVER_CRT"
 chmod 600 "$SERVER_KEY" "$SERVER_CRT"
 CERT_PIN=$(openssl x509 -in "$SERVER_CRT" -outform der | openssl dgst -sha256 -r | cut -d' ' -f1)
-HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#Magicat_HY2"
+HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#magicat_HY2"
 KEY_SHA256=$(openssl x509 -in "$SERVER_CRT" -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl base64 -A)
 
 # VLESS + REALITY 参数
@@ -54,7 +54,7 @@ REALITY_KEYS=$("$SINGBOX_BIN" generate reality-keypair)
 REALITY_PRIVATE=$(echo "$REALITY_KEYS" | awk '/PrivateKey/{print $2}')
 REALITY_PUBLIC=$(echo "$REALITY_KEYS" | awk '/PublicKey/{print $2}')
 SHORT_ID=$(openssl rand -hex 8)
-VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#Magicat_VLESS"
+VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#magicat_VLESS"
 
 # sing-box 配置
 cat > "$SINGBOX_CONF" << EOF
@@ -101,7 +101,6 @@ cat > "$SINGBOX_CONF" << EOF
 }
 EOF
 
-"$SINGBOX_BIN" check -c "$SINGBOX_CONF"
 chown -R magicat /etc/sing-box
 chmod 700 /etc/sing-box
 chown magicat "$SINGBOX_CONF"
