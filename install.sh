@@ -14,7 +14,6 @@ SERVER_IP=$(curl -fsS --proto '=https' --tlsv1.2 --max-time 10 https://api.ipify
 PASSWORD=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)
 PORT=443
 REALITY_SNI="www.cloudflare.com"
-WS_PATH="/$(openssl rand -hex 6)"
 
 # 专用系统用户
 id magicat &>/dev/null || useradd --system --no-create-home --shell /usr/sbin/nologin magicat
@@ -55,10 +54,7 @@ REALITY_KEYS=$("$SINGBOX_BIN" generate reality-keypair)
 REALITY_PRIVATE=$(echo "$REALITY_KEYS" | awk '/PrivateKey/{print $2}')
 REALITY_PUBLIC=$(echo "$REALITY_KEYS" | awk '/PublicKey/{print $2}')
 SHORT_ID=$(openssl rand -hex 8)
-
-# [修改] type=ws；path 需 URL 编码；删除 flow=xtls-rprx-vision（与 WS 不兼容）
-WS_PATH_ENC=$(printf '%s' "$WS_PATH" | sed 's|/|%2F|g')
-VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=ws&path=${WS_PATH_ENC}&host=${REALITY_SNI}#Magicat_VLESS"
+VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#Magicat_VLESS"
 
 # sing-box 配置
 cat > "$SINGBOX_CONF" << EOF
@@ -83,7 +79,7 @@ cat > "$SINGBOX_CONF" << EOF
       "tag": "vless-in",
       "listen": "::",
       "listen_port": ${PORT},
-      "users": [{"name": "magicat_vless", "uuid": "${UUID}"}],
+      "users": [{"name": "magicat_vless", "uuid": "${UUID}", "flow": "xtls-rprx-vision"}],
       "tls": {
         "enabled": true,
         "server_name": "${REALITY_SNI}",
@@ -96,10 +92,6 @@ cat > "$SINGBOX_CONF" << EOF
           "private_key": "${REALITY_PRIVATE}",
           "short_id": ["${SHORT_ID}"]
         }
-      },
-      "transport": {
-        "type": "ws",
-        "path": "${WS_PATH}"
       }
     }
   ],
@@ -108,6 +100,8 @@ cat > "$SINGBOX_CONF" << EOF
   ]
 }
 EOF
+
+"$SINGBOX_BIN" check -c "$SINGBOX_CONF"
 chown -R magicat /etc/sing-box
 chmod 700 /etc/sing-box
 chown magicat "$SINGBOX_CONF"
@@ -158,7 +152,6 @@ EOF
 systemctl daemon-reload
 systemctl enable sing-box
 systemctl restart sing-box
-systemctl status sing-box --no-pager
 
 # 客户端信息
 echo "----------------"
