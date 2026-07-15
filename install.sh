@@ -5,14 +5,6 @@ trap 'echo "部署失败 (第 ${LINENO} 行)"; exit 1' ERR
 umask 077
 
 # 参数
-CF_DOMAIN="${CF_DOMAIN:-}"        # 已接入 Cloudflare 并开启橙云的域名，必填
-WS_PATH="/magicat-ws"             # 隐蔽 path，客户端需一致
-
-if [ -z "$CF_DOMAIN" ]; then
-  echo "未设置 CF_DOMAIN"
-  exit 1
-fi
-
 DOWNLOAD_URL="https://github.com/magicat-work/magicat_node/releases/download/amd64/sing-box"
 SINGBOX_BIN="/usr/local/bin/sing-box"
 SINGBOX_CONF="/etc/sing-box/config.json"
@@ -21,6 +13,8 @@ SERVER_CRT="/etc/sing-box/server.crt"
 SERVER_IP=$(curl -fsS --proto '=https' --tlsv1.2 --max-time 10 https://api.ipify.org)
 PASSWORD=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)
 PORT=443
+REALITY_SNI="www.cloudflare.com"
+WS_PATH="/$(openssl rand -hex 6)"
 
 # 专用系统用户
 id magicat &>/dev/null || useradd --system --no-create-home --shell /usr/sbin/nologin magicat
@@ -42,23 +36,29 @@ systemctl stop sing-box 2>/dev/null || true
 curl -fL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$SINGBOX_BIN" "$DOWNLOAD_URL"
 chmod 755 "$SINGBOX_BIN"
 
-# 自签名证书 (HY2 直连 + CF Full 模式回源共用)
+# 自签名证书
 openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
   -keyout "$SERVER_KEY" \
   -out    "$SERVER_CRT" \
   -days 3650 \
   -subj "/CN=cloudflare.com" \
-  -addext "subjectAltName=IP:${SERVER_IP},DNS:${CF_DOMAIN}"
+  -addext "subjectAltName=IP:${SERVER_IP}"
 chown magicat "$SERVER_KEY" "$SERVER_CRT"
 chmod 600 "$SERVER_KEY" "$SERVER_CRT"
 CERT_PIN=$(openssl x509 -in "$SERVER_CRT" -outform der | openssl dgst -sha256 -r | cut -d' ' -f1)
 HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#Magicat_HY2"
 KEY_SHA256=$(openssl x509 -in "$SERVER_CRT" -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl base64 -A)
 
-# VLESS + WebSocket 参数 (走 Cloudflare 边缘)
+# VLESS + REALITY 参数
 UUID=$("$SINGBOX_BIN" generate uuid)
-WS_PATH_ENC=$(echo "$WS_PATH" | sed 's#/#%2F#g')
-VLESS_URI="vless://${UUID}@${CF_DOMAIN}:443?encryption=none&security=tls&sni=${CF_DOMAIN}&type=ws&host=${CF_DOMAIN}&path=${WS_PATH_ENC}#Magicat_VLESS_WS"
+REALITY_KEYS=$("$SINGBOX_BIN" generate reality-keypair)
+REALITY_PRIVATE=$(echo "$REALITY_KEYS" | awk '/PrivateKey/{print $2}')
+REALITY_PUBLIC=$(echo "$REALITY_KEYS" | awk '/PublicKey/{print $2}')
+SHORT_ID=$(openssl rand -hex 8)
+
+# [修改] type=ws；path 需 URL 编码；删除 flow=xtls-rprx-vision（与 WS 不兼容）
+WS_PATH_ENC=$(printf '%s' "$WS_PATH" | sed 's|/|%2F|g')
+VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=ws&path=${WS_PATH_ENC}&host=${REALITY_SNI}#Magicat_VLESS"
 
 # sing-box 配置
 cat > "$SINGBOX_CONF" << EOF
@@ -86,8 +86,16 @@ cat > "$SINGBOX_CONF" << EOF
       "users": [{"name": "magicat_vless", "uuid": "${UUID}"}],
       "tls": {
         "enabled": true,
-        "certificate_path": "${SERVER_CRT}",
-        "key_path": "${SERVER_KEY}"
+        "server_name": "${REALITY_SNI}",
+        "reality": {
+          "enabled": true,
+          "handshake": {
+            "server": "${REALITY_SNI}",
+            "server_port": 443
+          },
+          "private_key": "${REALITY_PRIVATE}",
+          "short_id": ["${SHORT_ID}"]
+        }
       },
       "transport": {
         "type": "ws",
@@ -165,4 +173,4 @@ echo "----------------"
 echo "${HY2_URI}"
 echo "----------------"
 
-# 运行 CF_DOMAIN=node.example.com bash install.sh
+# 运行 bash install.sh
