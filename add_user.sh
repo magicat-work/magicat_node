@@ -98,14 +98,14 @@ for i in "${!NAMES[@]}"; do
   N="${NAMES[$i]}"
   UUID="${UUIDS[$i]}"
   PASSWORD="${PWS[$i]}"
-  VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#${N}_VLESS"
   HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#${N}_HY2"
+  VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#${N}_VLESS"
   echo "------"
   echo "# ${N}"
   echo "------"
-  echo "${VLESS_URI}"
-  echo "---"
   echo "${HY2_URI}"
+  echo "---"
+  echo "${VLESS_URI}"
 done
 echo "------"
 
