@@ -4,16 +4,10 @@ trap 'echo "清理失败 (第 ${LINENO} 行)"; exit 1' ERR
 [ "$(id -u)" -eq 0 ] || { echo "请用 root 运行"; exit 1; }
 umask 077
 
-CLEAN_URL="https://raw.githubusercontent.com/magicat-work/magicat_node/main/clean_user.sh"
-CLEAN_BIN="/usr/local/bin/clean_user.sh"
 SINGBOX_BIN="/usr/local/bin/sing-box"
 SINGBOX_CONF="/etc/sing-box/config.json"
 BAK="${SINGBOX_CONF}.bak"
 TMP="${SINGBOX_CONF}.new"
-
-# ---- 先下载最新 clean_user.sh ----
-curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$CLEAN_BIN" "$CLEAN_URL"
-chmod 755 "$CLEAN_BIN"
 
 # 用户名即到期日。仅处理严格 YYYY-MM-DD 格式的名字，
 # 其余名字 (如 install.sh 建的 magicat_hy2 / magicat_vless) 一律不动。
