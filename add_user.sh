@@ -92,7 +92,7 @@ if ! systemctl restart sing-box; then
 fi
 
 # ---- 逐个输出新用户的客户端链接 ----
-echo "----------------"
+echo "------"
 echo "# 新增 ${#NAMES[@]} 个用户   (备份: ${BAK})"
 for i in "${!NAMES[@]}"; do
   N="${NAMES[$i]}"
@@ -100,11 +100,13 @@ for i in "${!NAMES[@]}"; do
   PASSWORD="${PWS[$i]}"
   VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#${N}_VLESS"
   HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#${N}_HY2"
-  echo "----------------"
+  echo "------"
   echo "# ${N}"
+  echo "---"
   echo "${VLESS_URI}"
+  echo "---"
   echo "${HY2_URI}"
 done
-echo "----------------"
+echo "------"
 
 # 运行 bash add_user.sh YYYY-MM-DD YYYY-MM-DD ...
