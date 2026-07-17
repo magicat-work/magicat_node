@@ -153,16 +153,55 @@ systemctl enable sing-box
 systemctl restart sing-box
 
 # 客户端信息
-echo "----------------"
+echo "------"
 echo "# Magicat配置"
-echo "----------------"
+echo "------"
 printf '{"serverip":"%s", "port": %d, "password":"%s","keysha256":"%s"}\n' "$SERVER_IP" "$PORT" "$PASSWORD" "$KEY_SHA256"
-echo "----------------"
+echo "------"
 echo "# v2rayN/v2rayNG"
-echo "----------------"
+echo "------"
 echo "${VLESS_URI}"
-echo "----------------"
+echo "---"
 echo "${HY2_URI}"
-echo "----------------"
+echo "------"
 
 # 运行 bash install.sh
+
+# ================= 过期用户清理服务 =================
+# 用户名即到期日 (YYYY-MM-DD)，每天北京时间 06:00 清理过期用户
+# 非日期名字 (magicat_hy2 / magicat_vless) 不受影响
+CLEAN_URL="https://raw.githubusercontent.com/magicat-work/magicat_node/main/clean_user.sh"
+CLEAN_BIN="/usr/local/bin/clean_user.sh"
+
+# jq: add_user.sh / clean_user.sh 改配置用，此处一次装好
+command -v jq >/dev/null || { apt-get update -qq >/dev/null; apt-get install -y jq >/dev/null; }
+
+curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$CLEAN_BIN" "$CLEAN_URL"
+chmod 755 "$CLEAN_BIN"
+
+cat > /etc/systemd/system/clean-user.service << 'EOF'
+[Unit]
+Description=Remove expired sing-box users
+After=network.target
+ConditionPathExists=/etc/sing-box/config.json
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/clean_user.sh
+EOF
+
+cat > /etc/systemd/system/clean-user.timer << 'EOF'
+[Unit]
+Description=Daily expired sing-box user cleanup (06:00 Asia/Shanghai)
+[Timer]
+OnCalendar=*-*-* 06:00:00 Asia/Shanghai
+Persistent=true
+AccuracySec=1min
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl enable clean-user.timer >/dev/null 2>&1
+systemctl restart clean-user.timer
+
+# 手动清理 bash /usr/local/bin/clean_user.sh

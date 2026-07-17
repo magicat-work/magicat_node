@@ -5,12 +5,12 @@
 ## 快速搭建 Sing-box 节点
 
 ```bash
-curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/install.sh | sudo bash
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/install.sh | bash
 ```
 
 ## 卸载部署
 ```bash
-curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/unins.sh | sudo bash
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/unins.sh | bash
 ```
 ---
 
@@ -33,7 +33,7 @@ systemctl --version | head -1
 ```
 ### 添加用户
 ```bash
-curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/add_user.sh | sudo bash
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/add_user.sh | bash
 ```
 
 ---

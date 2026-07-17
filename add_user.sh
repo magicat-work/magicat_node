@@ -102,7 +102,7 @@ for i in "${!NAMES[@]}"; do
   HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#${N}_HY2"
   echo "------"
   echo "# ${N}"
-  echo "---"
+  echo "------"
   echo "${VLESS_URI}"
   echo "---"
   echo "${HY2_URI}"
@@ -110,3 +110,4 @@ done
 echo "------"
 
 # 运行 bash add_user.sh YYYY-MM-DD YYYY-MM-DD ...
+# curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/add_user.sh | bash -s -- YYYY-MM-DD YYYY-MM-DD ...
