@@ -26,6 +26,18 @@ curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/unins.
 
 ---
 
+## 用户系统
+### 确认 systemd 版本 ≥ 252
+```bash
+systemctl --version | head -1
+```
+### 添加用户
+```bash
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/add_user.sh | sudo bash
+```
+
+---
+
 ## 联系咨询
 
 | 方式 | 地址 |
