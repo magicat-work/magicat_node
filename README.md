@@ -35,7 +35,10 @@ systemctl --version | head -1
 ```bash
 curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/add_user.sh | bash
 ```
-
+### 删除用户
+```bash
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/del_user.sh | bash -s -- YYYY-MM-DD YYYY-MM-DD
+```
 ---
 
 ## 联系咨询

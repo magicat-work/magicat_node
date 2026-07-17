@@ -118,7 +118,7 @@ echo "------"
 CLEAN_URL="https://raw.githubusercontent.com/magicat-work/magicat_node/main/clean_user.sh"
 CLEAN_BIN="/usr/local/bin/clean_user.sh"
 
-# jq: add_user.sh / clean_user.sh 改配置用，此处一次装好
+# jq
 command -v jq >/dev/null || { apt-get update -qq >/dev/null; apt-get install -y jq >/dev/null; }
 
 curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$CLEAN_BIN" "$CLEAN_URL"
