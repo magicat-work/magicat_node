@@ -4,23 +4,25 @@ trap 'echo "添加失败 (第 ${LINENO} 行)"; exit 1' ERR
 [ "$(id -u)" -eq 0 ] || { echo "请用 root 运行"; exit 1; }
 umask 077
 
-# 默认用户名 = 中国时区「下个月的今天」，格式 YYYY-MM-DD 
+# 不带参数时 = 中国时区「下个月的今天」，格式 YYYY-MM-DD
 # 下月无该日时 (如 1-31 → 2月) 取下下月 1 号：即 min(下月今天, 下下月1号)
-if [ -z "$1" ]; then
+if [ "$#" -eq 0 ]; then
   _d=$((10#$(TZ='Asia/Shanghai' date +%d)))
   _m1=$(date -d "$(TZ='Asia/Shanghai' date +%Y-%m-01) +1 month" +%F)  # 下月1号
   _a=$(date -d "$_m1 +$((_d-1)) days" +%F)                            # 下月今天(溢出自动顺延)
   _b=$(date -d "$_m1 +1 month" +%F)                                   # 下下月1号
-  [[ "$_a" < "$_b" ]] && NEW_NAME="$_a" || NEW_NAME="$_b"
+  [[ "$_a" < "$_b" ]] && NAMES=("$_a") || NAMES=("$_b")
 else
-  NEW_NAME="$1"
+  NAMES=("$@")
 fi
 
-# 校验: 必须是严格 YYYY-MM-DD 格式，且为真实存在的日期
-[[ "$NEW_NAME" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
-  || { echo "用户名格式错误: ${NEW_NAME}"; exit 1; }
-[ "$(date -d "$NEW_NAME" +%F 2>/dev/null)" = "$NEW_NAME" ] \
-  || { echo "该日期不存在: ${NEW_NAME}"; exit 1; }
+# 校验: 每个都必须是严格 YYYY-MM-DD 格式，且为真实存在的日期
+for N in "${NAMES[@]}"; do
+  [[ "$N" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+    || { echo "用户名格式错误: ${N}"; exit 1; }
+  [ "$(date -d "$N" +%F 2>/dev/null)" = "$N" ] \
+    || { echo "该日期不存在: ${N}"; exit 1; }
+done
 
 SINGBOX_BIN="/usr/local/bin/sing-box"
 SINGBOX_CONF="/etc/sing-box/config.json"
@@ -49,20 +51,28 @@ REALITY_PUBLIC=$(
   | tail -c 32 | basenc --base64url | tr -d '='
 )
 
-# ---- 新用户凭据 ----
-PASSWORD=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)
-UUID=$("$SINGBOX_BIN" generate uuid)
+# ---- 逐个生成独立凭据，汇总成两个 JSON 数组 ----
+# 用下标数组与 NAMES 一一对应（允许重名，故不能用名字做键）
+PWS=(); UUIDS=()
+HY_JSON='[]'; VL_JSON='[]'
+for i in "${!NAMES[@]}"; do
+  N="${NAMES[$i]}"
+  PWS[$i]=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)
+  UUIDS[$i]=$("$SINGBOX_BIN" generate uuid)
+  HY_JSON=$(printf '%s' "$HY_JSON" | jq --arg n "$N" --arg p "${PWS[$i]}" \
+    '. + [{"name":$n,"password":$p}]')
+  VL_JSON=$(printf '%s' "$VL_JSON" | jq --arg n "$N" --arg u "${UUIDS[$i]}" \
+    '. + [{"name":$n,"uuid":$u,"flow":"xtls-rprx-vision"}]')
+done
 
 # ---- 备份并写入 (固定文件名，每次覆盖，只保留上一次配置) ----
 BAK="${SINGBOX_CONF}.bak"
 cp -a "$SINGBOX_CONF" "$BAK"
 
 TMP="${SINGBOX_CONF}.new"
-jq \
-  --arg hy_name "$NEW_NAME" --arg hy_pw "$PASSWORD" \
-  --arg vl_name "$NEW_NAME" --arg vl_uuid "$UUID" \
-  '(.inbounds[] | select(.tag=="h2-in").users)   += [{"name":$hy_name,"password":$hy_pw}]
- | (.inbounds[] | select(.tag=="vless-in").users) += [{"name":$vl_name,"uuid":$vl_uuid,"flow":"xtls-rprx-vision"}]' \
+jq --argjson hy "$HY_JSON" --argjson vl "$VL_JSON" \
+  '(.inbounds[] | select(.tag=="h2-in").users)   += $hy
+ | (.inbounds[] | select(.tag=="vless-in").users) += $vl' \
   "$SINGBOX_CONF" > "$TMP"
 
 # 应用前校验语法
@@ -81,16 +91,20 @@ if ! systemctl restart sing-box; then
   exit 1
 fi
 
-# ---- 新用户客户端链接 ----
-VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#${NEW_NAME}_VLESS"
-HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#${NEW_NAME}_HY2"
+# ---- 逐个输出新用户的客户端链接 ----
+echo "----------------"
+echo "# 新增 ${#NAMES[@]} 个用户   (备份: ${BAK})"
+for i in "${!NAMES[@]}"; do
+  N="${NAMES[$i]}"
+  UUID="${UUIDS[$i]}"
+  PASSWORD="${PWS[$i]}"
+  VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#${N}_VLESS"
+  HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#${N}_HY2"
+  echo "----------------"
+  echo "# ${N}"
+  echo "${VLESS_URI}"
+  echo "${HY2_URI}"
+done
+echo "----------------"
 
-echo "----------------"
-echo "# 新用户: ${NEW_NAME}   (备份: ${BAK})"
-echo "----------------"
-echo "${VLESS_URI}"
-echo "----------------"
-echo "${HY2_URI}"
-echo "----------------"
-
-# 运行 bash add_user.sh [YYYY-MM-DD]
+# 运行 bash add_user.sh YYYY-MM-DD YYYY-MM-DD ...
