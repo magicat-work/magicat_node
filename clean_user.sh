@@ -23,10 +23,10 @@ EXPIRED=$(jq -r --arg t "$TODAY" --arg re "$DATE_RE" '
 
 # ---- 没有过期用户就直接退出，绝不重启 ----
 if [ -z "$EXPIRED" ]; then
-  echo "[${TODAY}] 无过期用户，未改动配置"
+  echo "无过期用户"
   exit 0
 fi
-echo "[${TODAY}] 过期用户: $(echo "$EXPIRED" | tr '\n' ' ')"
+echo "过期用户: $(echo "$EXPIRED" | tr '\n' ' ')"
 
 # ---- 备份并删除 (保留: 非日期名字 或 到期日 >= 今天) ----
 cp -a "$SINGBOX_CONF" "$BAK"
@@ -50,3 +50,5 @@ if ! systemctl restart sing-box; then
   systemctl restart sing-box
   exit 1
 fi
+
+# 手动清理 bash /usr/local/bin/clean_user.sh

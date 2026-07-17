@@ -203,5 +203,3 @@ EOF
 systemctl daemon-reload
 systemctl enable clean-user.timer >/dev/null 2>&1
 systemctl restart clean-user.timer
-
-# 手动清理 bash /usr/local/bin/clean_user.sh
