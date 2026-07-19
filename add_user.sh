@@ -21,7 +21,7 @@ for N in "${NAMES[@]}"; do
   [[ "$N" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
     || { echo "用户名格式错误: ${N}"; exit 1; }
   [ "$(date -d "$N" +%F 2>/dev/null)" = "$N" ] \
-    || { echo "该日期不存在: ${N}"; exit 1; }
+    || { echo "日期不存在: ${N}"; exit 1; }
 done
 
 SINGBOX_BIN="/usr/local/bin/sing-box"

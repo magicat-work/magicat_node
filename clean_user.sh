@@ -26,7 +26,7 @@ if [ -z "$EXPIRED" ]; then
   echo "无过期用户"
   exit 0
 fi
-echo "过期用户: $(echo "$EXPIRED" | tr '\n' ' ')"
+echo "清理过期用户: $(echo "$EXPIRED" | tr '\n' ' ')"
 
 # ---- 备份并删除 (保留: 非日期名字 或 到期日 >= 今天) ----
 cp -a "$SINGBOX_CONF" "$BAK"
@@ -52,3 +52,4 @@ if ! systemctl restart sing-box; then
 fi
 
 # 手动清理 bash /usr/local/bin/clean_user.sh
+# 日志 TZ='Asia/Shanghai' journalctl -u clean-user.service --no-pager -o short-full
