@@ -33,7 +33,7 @@ systemctl --version | head -1
 ```
 ### 添加用户
 ```bash
-curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/add_user.sh | bash
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/add_user.sh | bash -s -- YYYY-MM-DD YYYY-MM-DD
 ```
 ### 删除用户
 ```bash
