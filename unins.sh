@@ -1,6 +1,6 @@
 #!/bin/bash
 # sing-box 卸载 / 还原脚本
-[ "$(id -u)" -eq 0 ] || { echo "需要 root"; exit 1; }
+[ "$(id -u)" -eq 0 ] || { echo "需要 root 权限"; exit 1; }
 
 # 1. 停止并禁用服务 (先停 timer，避免卸载途中被触发)
 systemctl disable --now clean-user.timer 2>/dev/null || true
@@ -36,4 +36,6 @@ sysctl --system >/dev/null 2>&1 || true
 
 echo "清理完成 (证书/密钥已安全擦除)"
 
-# 运行 bash unins.sh
+# 用法
+# bash unins.sh
+# curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/unins.sh | bash

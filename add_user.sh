@@ -1,11 +1,10 @@
 #!/bin/bash
 set -e
 trap 'echo "添加失败 (第 ${LINENO} 行)"; exit 1' ERR
-[ "$(id -u)" -eq 0 ] || { echo "请用 root 运行"; exit 1; }
+[ "$(id -u)" -eq 0 ] || { echo "无 root 权限"; exit 1; }
 umask 077
 
 # 不带参数时 = 中国时区「下个月的今天」，格式 YYYY-MM-DD
-# 下月无该日时 (如 1-31 → 2月) 取下下月 1 号：即 min(下月今天, 下下月1号)
 if [ "$#" -eq 0 ]; then
   _d=$((10#$(TZ='Asia/Shanghai' date +%d)))
   _m1=$(date -d "$(TZ='Asia/Shanghai' date +%Y-%m-01) +1 month" +%F)  # 下月1号
@@ -24,11 +23,55 @@ for N in "${NAMES[@]}"; do
     || { echo "日期不存在: ${N}"; exit 1; }
 done
 
+# ================= 过期用户清理服务（每次刷新）=================
+# 放在改动配置之前：下载/更新失败就直接退出，此时尚未动过任何用户，重跑即可
+# 每次加用户都重新拉取 clean_user.sh，确保服务器上始终是仓库最新版
+# 用户名即到期日 (YYYY-MM-DD)，每天北京时间 06:00 清理过期用户
+# 非日期名字 (magicat_hy2 / magicat_vless) 不受影响
+CLEAN_URL="https://raw.githubusercontent.com/magicat-work/magicat_node/main/clean_user.sh"
+CLEAN_BIN="/usr/local/bin/clean_user.sh"
+
+# jq 整段脚本都要用，在这里一次装好
+command -v jq >/dev/null || {
+  apt-get update -qq >/dev/null 2>&1 || true
+  apt-get install -y jq >/dev/null || { echo "jq 安装失败（未改动配置）"; exit 1; }
+}
+
+# 每次都刷新清理脚本：先下到临时文件，成功后再原子替换
+# —— 避免拉到一半断线时，把截断的坏脚本留在正式路径上被 timer 执行
+_clean_tmp="${CLEAN_BIN}.new"
+curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$_clean_tmp" "$CLEAN_URL" || { echo "清理脚本下载失败（未改动配置，可重试）"; rm -f "$_clean_tmp"; exit 1; }
+chmod 755 "$_clean_tmp"
+mv -f "$_clean_tmp" "$CLEAN_BIN"
+
+cat > /etc/systemd/system/clean-user.service << 'EOF'
+[Unit]
+Description=Remove expired sing-box users
+After=network.target
+ConditionPathExists=/etc/sing-box/config.json
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/clean_user.sh
+EOF
+
+cat > /etc/systemd/system/clean-user.timer << 'EOF'
+[Unit]
+Description=Daily expired sing-box user cleanup (06:00 Asia/Shanghai)
+[Timer]
+OnCalendar=*-*-* 06:00:00 Asia/Shanghai
+Persistent=true
+AccuracySec=10min
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl enable clean-user.timer >/dev/null 2>&1
+systemctl restart clean-user.timer
+
 SINGBOX_BIN="/usr/local/bin/sing-box"
 SINGBOX_CONF="/etc/sing-box/config.json"
 SERVER_CRT="/etc/sing-box/server.crt"
-
-command -v jq >/dev/null || apt-get install -y jq >/dev/null
 
 # ---- 从现有配置读取服务器级共享参数 ----
 PORT=$(jq -r '.inbounds[] | select(.tag=="h2-in") | .listen_port' "$SINGBOX_CONF")
@@ -36,7 +79,7 @@ REALITY_SNI=$(jq -r '.inbounds[] | select(.tag=="vless-in") | .tls.server_name' 
 SHORT_ID=$(jq -r '.inbounds[] | select(.tag=="vless-in") | .tls.reality.short_id[0]' "$SINGBOX_CONF")
 REALITY_PRIVATE=$(jq -r '.inbounds[] | select(.tag=="vless-in") | .tls.reality.private_key' "$SINGBOX_CONF")
 
-# 公网 IP：配置里没存，重新获取（失败则回退到证书 SAN）
+# 公网 IP
 SERVER_IP=$(curl -fsS --proto '=https' --tlsv1.2 --max-time 10 https://api.ipify.org)
 
 # HY2 证书指纹（与部署脚本算法一致）
@@ -91,8 +134,8 @@ if ! systemctl restart sing-box; then
   exit 1
 fi
 
-# ---- 逐个输出新用户的客户端链接 ----
-echo "------"
+# ---- 输出链接 ----
+echo "---"
 echo "# 新增 ${#NAMES[@]} 个用户   (备份: ${BAK})"
 for i in "${!NAMES[@]}"; do
   N="${NAMES[$i]}"
@@ -100,51 +143,14 @@ for i in "${!NAMES[@]}"; do
   PASSWORD="${PWS[$i]}"
   HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#${N}_HY2"
   VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#${N}_VLESS"
-  echo "------"
-  echo "# ${N}"
-  echo "------"
-  echo "${HY2_URI}"
   echo "---"
+  echo "# ${N}"
+  echo "---"
+  echo "${HY2_URI}"
   echo "${VLESS_URI}"
 done
-echo "------"
+echo "---"
 
-# 运行 bash add_user.sh YYYY-MM-DD YYYY-MM-DD ...
-# curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/add_user.sh | bash -s -- YYYY-MM-DD YYYY-MM-DD ...
-
-# ================= 过期用户清理服务 =================
-# 用户名即到期日 (YYYY-MM-DD)，每天北京时间 06:00 清理过期用户
-# 非日期名字 (magicat_hy2 / magicat_vless) 不受影响
-CLEAN_URL="https://raw.githubusercontent.com/magicat-work/magicat_node/main/clean_user.sh"
-CLEAN_BIN="/usr/local/bin/clean_user.sh"
-
-# jq
-command -v jq >/dev/null || { apt-get update -qq >/dev/null; apt-get install -y jq >/dev/null; }
-
-curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$CLEAN_BIN" "$CLEAN_URL"
-chmod 755 "$CLEAN_BIN"
-
-cat > /etc/systemd/system/clean-user.service << 'EOF'
-[Unit]
-Description=Remove expired sing-box users
-After=network.target
-ConditionPathExists=/etc/sing-box/config.json
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/clean_user.sh
-EOF
-
-cat > /etc/systemd/system/clean-user.timer << 'EOF'
-[Unit]
-Description=Daily expired sing-box user cleanup (06:00 Asia/Shanghai)
-[Timer]
-OnCalendar=*-*-* 06:00:00 Asia/Shanghai
-Persistent=true
-AccuracySec=10min
-[Install]
-WantedBy=timers.target
-EOF
-
-systemctl daemon-reload
-systemctl enable clean-user.timer >/dev/null 2>&1
-systemctl restart clean-user.timer
+# 用法
+# bash add_user.sh YYYY-MM-DD YYYY-MM-DD
+# curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/add_user.sh | bash -s -- YYYY-MM-DD YYYY-MM-DD

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 trap 'echo "部署失败 (第 ${LINENO} 行)"; exit 1' ERR
-[ "$(id -u)" -eq 0 ] || exit 1
+[ "$(id -u)" -eq 0 ] || { echo "无 root 权限"; exit 1; }
 umask 077
 
 # 参数
@@ -153,16 +153,17 @@ systemctl enable sing-box
 systemctl restart sing-box
 
 # 客户端信息
-echo "------"
-echo "# Magicat配置"
-echo "------"
-printf '{"serverip":"%s", "port": %d, "password":"%s","keysha256":"%s"}\n' "$SERVER_IP" "$PORT" "$PASSWORD" "$KEY_SHA256"
-echo "------"
-echo "# v2rayN/v2rayNG"
-echo "------"
-echo "${HY2_URI}"
 echo "---"
+echo "# Magicat配置"
+echo "---"
+printf '{"serverip":"%s", "port": %d, "password":"%s","keysha256":"%s"}\n' "$SERVER_IP" "$PORT" "$PASSWORD" "$KEY_SHA256"
+echo "---"
+echo "# v2rayN/v2rayNG"
+echo "---"
+echo "${HY2_URI}"
 echo "${VLESS_URI}"
-echo "------"
+echo "---"
 
-# 运行 bash install.sh
+# 用法
+# bash install.sh
+# curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/install.sh | bash
