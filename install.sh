@@ -154,11 +154,7 @@ systemctl restart sing-box
 
 # 客户端信息
 echo "---"
-echo "# Magicat配置"
-echo "---"
 printf '{"serverip":"%s", "port": %d, "password":"%s","keysha256":"%s"}\n' "$SERVER_IP" "$PORT" "$PASSWORD" "$KEY_SHA256"
-echo "---"
-echo "# v2rayN/v2rayNG"
 echo "---"
 echo "${HY2_URI}"
 echo "${VLESS_URI}"

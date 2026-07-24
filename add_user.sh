@@ -144,8 +144,6 @@ for i in "${!NAMES[@]}"; do
   HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?sni=cloudflare.com&pinSHA256=${CERT_PIN}#${N}_HY2"
   VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#${N}_VLESS"
   echo "---"
-  echo "# ${N}"
-  echo "---"
   echo "${HY2_URI}"
   echo "${VLESS_URI}"
 done
