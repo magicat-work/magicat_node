@@ -22,13 +22,14 @@ set -Ee -o pipefail
 trap 'echo "部署失败 (第 ${LINENO} 行)"; exit 1' ERR
 umask 077
 id magicat &>/dev/null || useradd --system --no-create-home --shell /usr/sbin/nologin magicat
-SERVER_IP=$(curl -fsS --proto '=https' --tlsv1.2 --max-time 10 https://api.ipify.org)
-PASSWORD=$(head -c 256 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-24)
+
+# 模式: 空=安装 | rebuild=重建(仅保留 users) | sysupdate=系统更新(证书与配置不动)
+MODE="${1:-}"
+[ "$MODE" = "sysupdate" ] || SERVER_IP=$(curl -fsS --proto '=https' --tlsv1.2 --max-time 10 https://api.ipify.org)
 
 # 重建模式
-REBUILD="${1:-}"
-if [ -n "$REBUILD" ]; then
-  [ -s "$SINGBOX_CONF" ] || { echo "未检测到 ${SINGBOX_CONF}，无法重建"; exit 1; }
+if [ "$MODE" = "rebuild" ]; then
+  [ -s "$SINGBOX_CONF" ] || { echo "未检测到 ${SINGBOX_CONF}"; exit 1; }
   command -v jq >/dev/null || {
     apt-get update -qq >/dev/null 2>&1 || true
     apt-get install -y jq >/dev/null || { echo "jq 安装失败"; exit 1; }
@@ -46,6 +47,9 @@ if [ -n "$REBUILD" ]; then
     }
   cp -a "$SINGBOX_CONF" /root/config.json.bak
 fi
+
+# 系统更新模式，确认配置存在
+[ "$MODE" != "sysupdate" ] || [ -s "$SINGBOX_CONF" ] || { echo "未检测到 ${SINGBOX_CONF}"; exit 1; }
 
 # 系统优化
 # sysctl --system
@@ -83,7 +87,10 @@ systemctl stop sing-box 2>/dev/null || true
 curl -fL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$SINGBOX_BIN" "$DOWNLOAD_URL"
 chmod 755 "$SINGBOX_BIN"
 
-# 自签名证书
+# 系统更新模式
+if [ "$MODE" != "sysupdate" ]; then
+
+# 自签证书
 openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
   -keyout "$SERVER_KEY" -out "$SERVER_CRT" -days 5475 -extensions ext \
   -config <(cat << EOF
@@ -104,7 +111,8 @@ chown magicat "$SERVER_KEY" "$SERVER_CRT"
 chmod 600 "$SERVER_KEY" "$SERVER_CRT"
 CERT_PIN=$(openssl x509 -in "$SERVER_CRT" -outform der | openssl dgst -sha256 -r | cut -d' ' -f1)
 
-# VLESS + REALITY 参数
+# 配置参数
+PASSWORD=$(head -c 256 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-24)
 UUID=$("$SINGBOX_BIN" generate uuid)
 REALITY_SNI="www.cloudflare.com"
 REALITY_KEYS=$("$SINGBOX_BIN" generate reality-keypair)
@@ -161,8 +169,13 @@ cat > "$SINGBOX_CONF" << EOF
 }
 EOF
 
+fi
+
+# 系统更新模式: 用新内核校验原配置
+[ "$MODE" = "sysupdate" ] && "$SINGBOX_BIN" check -c "$SINGBOX_CONF"
+
 # 重建模式: 用旧 users 整体覆盖两个入站
-if [ -n "$REBUILD" ]; then
+if [ "$MODE" = "rebuild" ]; then
   jq --argjson hy "$HY_USERS" --argjson vl "$VL_USERS" '(.inbounds[] | select(.tag=="h2-in").users) = $hy | (.inbounds[] | select(.tag=="vless-in").users) = $vl' "$SINGBOX_CONF" > "${SINGBOX_CONF}.new"
   mv "${SINGBOX_CONF}.new" "$SINGBOX_CONF"
   "$SINGBOX_BIN" check -c "$SINGBOX_CONF"
@@ -219,12 +232,10 @@ systemctl daemon-reload
 systemctl enable sing-box
 systemctl restart sing-box
 
-# 默认配置链接
-HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?pinSHA256=${CERT_PIN}#magicat_HY2"
-VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#magicat_VLESS"
-
 # 客户端信息
-if [ -n "$REBUILD" ]; then
+if [ "$MODE" = "sysupdate" ]; then
+  echo "系统更新完成"
+elif [ -n "$MODE" ]; then
   PAIRS=$(jq -r -n --argjson hy "$HY_USERS" --argjson vl "$VL_USERS" '[$hy, $vl] | transpose[] | [.[0].name, .[0].password, .[1].name, .[1].uuid] | @tsv')
   while IFS=$'\t' read -r NH P NV U; do
     echo "---"
@@ -233,6 +244,8 @@ if [ -n "$REBUILD" ]; then
     echo "---"
   done <<< "$PAIRS"
 else
+  HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?pinSHA256=${CERT_PIN}#magicat_HY2"
+  VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#magicat_VLESS"
   echo "---"
   echo "${HY2_URI}"
   echo "${VLESS_URI}"
@@ -315,8 +328,9 @@ exec 3<> /dev/tty || { echo "无控制终端" >&2; exit 1; }
 cat >&3 << 'EOF'
 [1] 安装
 [2] 卸载
-[3] 更新
+[3] 内核更新
 [4] 重建
+[5] 系统更新
 EOF
 printf '请选择: ' >&3
 read -r CHOICE <&3
@@ -326,5 +340,6 @@ case "$CHOICE" in
   2) do_uninstall ;;
   3) do_update ;;
   4) do_install rebuild ;;
+  5) do_install sysupdate ;;
   *) echo "无效输入: '${CHOICE}'"; exit 1 ;;
 esac
