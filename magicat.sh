@@ -3,6 +3,11 @@
 # curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/magicat.sh | bash
 
 [ "$(id -u)" -eq 0 ] || { echo "无 root 权限"; exit 1; }
+ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
+case "$ARCH" in
+  amd64|x86_64) ;;
+  *) echo "架构不支持: ${ARCH}"; exit 1 ;;
+esac
 
 # 参数
 DOWNLOAD_URL="https://github.com/magicat-work/magicat_node/releases/download/amd64/sing-box"
@@ -10,13 +15,13 @@ SINGBOX_BIN="/usr/local/bin/sing-box"
 SINGBOX_CONF="/etc/sing-box/config.json"
 SERVER_KEY="/etc/sing-box/server.key"
 SERVER_CRT="/etc/sing-box/server.crt"
-REALITY_SNI="www.cloudflare.com"
 PORT=443
 
 do_install() {
 set -Ee -o pipefail
 trap 'echo "部署失败 (第 ${LINENO} 行)"; exit 1' ERR
 umask 077
+id magicat &>/dev/null || useradd --system --no-create-home --shell /usr/sbin/nologin magicat
 SERVER_IP=$(curl -fsS --proto '=https' --tlsv1.2 --max-time 10 https://api.ipify.org)
 PASSWORD=$(head -c 256 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-24)
 
@@ -39,15 +44,10 @@ if [ -n "$REBUILD" ]; then
       echo "vless-in: $(jq -c 'map(.name)' <<<"$VL_USERS")"
       exit 1
     }
-
   cp -a "$SINGBOX_CONF" /root/config.json.bak
 fi
 
-# 专用系统用户
-id magicat &>/dev/null || useradd --system --no-create-home --shell /usr/sbin/nologin magicat
-
-# 系统优化 (BBR + UDP 缓冲)
-# 手动执行
+# 系统优化
 # sysctl --system
 # tc qdisc replace dev ens6 root fq
 cat > /etc/sysctl.d/99-singbox.conf << 'EOF'
@@ -100,19 +100,17 @@ subjectAltName = IP:${SERVER_IP}
 subjectKeyIdentifier = hash
 EOF
 )
-
 chown magicat "$SERVER_KEY" "$SERVER_CRT"
 chmod 600 "$SERVER_KEY" "$SERVER_CRT"
 CERT_PIN=$(openssl x509 -in "$SERVER_CRT" -outform der | openssl dgst -sha256 -r | cut -d' ' -f1)
-HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?pinSHA256=${CERT_PIN}#magicat_HY2"
 
 # VLESS + REALITY 参数
 UUID=$("$SINGBOX_BIN" generate uuid)
+REALITY_SNI="www.cloudflare.com"
 REALITY_KEYS=$("$SINGBOX_BIN" generate reality-keypair)
 REALITY_PRIVATE=$(echo "$REALITY_KEYS" | awk '/PrivateKey/{print $2}')
 REALITY_PUBLIC=$(echo "$REALITY_KEYS" | awk '/PublicKey/{print $2}')
 SHORT_ID=$(openssl rand -hex 4)
-VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#magicat_VLESS"
 
 # sing-box 配置
 cat > "$SINGBOX_CONF" << EOF
@@ -221,6 +219,10 @@ systemctl daemon-reload
 systemctl enable sing-box
 systemctl restart sing-box
 
+# 默认配置链接
+HY2_URI="hysteria2://${PASSWORD}@${SERVER_IP}:${PORT}/?pinSHA256=${CERT_PIN}#magicat_HY2"
+VLESS_URI="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SNI}&fp=chrome&pbk=${REALITY_PUBLIC}&sid=${SHORT_ID}&type=tcp#magicat_VLESS"
+
 # 客户端信息
 if [ -n "$REBUILD" ]; then
   PAIRS=$(jq -r -n --argjson hy "$HY_USERS" --argjson vl "$VL_USERS" '[$hy, $vl] | transpose[] | [.[0].name, .[0].password, .[1].name, .[1].uuid] | @tsv')
@@ -319,7 +321,6 @@ EOF
 printf '请选择: ' >&3
 read -r CHOICE <&3
 exec 3>&-
-
 case "$CHOICE" in
   1) do_install ;;
   2) do_uninstall ;;
