@@ -124,6 +124,9 @@ def build(uuid, pw):
 class Handler(BaseHTTPRequestHandler):
   protocol_version = "HTTP/1.1"
 
+  def log_message(self, *a):
+    pass
+
   def do_GET(self):
     m = PATH_RE.match(self.path)
     uris = (build(m.group(1), m.group(2)) if m else None) or [DEAD]
@@ -152,6 +155,8 @@ ConditionPathExists=/etc/sing-box/config.json
 User=magicat
 ExecStart=/usr/bin/python3 ${SUB_PY}
 Restart=no
+StandardOutput=null
+StandardError=null
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

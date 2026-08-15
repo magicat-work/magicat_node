@@ -36,11 +36,13 @@ mv "$TMP" "$SINGBOX_CONF"
 
 # 重启失败回滚
 if ! systemctl restart sing-box; then
-  cp -a "$BAK" "$SINGBOX_CONF"; chown magicat "$SINGBOX_CONF"; chmod 600 "$SINGBOX_CONF"
+  echo "重启失败，回滚到 ${BAK}"
+  cp -a "$BAK" "$SINGBOX_CONF"
+  chown magicat "$SINGBOX_CONF"; chmod 600 "$SINGBOX_CONF"
   systemctl restart sing-box
-  echo "重启失败，已回滚"; exit 1
+  exit 1
 fi
-
 cp "$SINGBOX_CONF" /root/config.json
+
 echo "已删除 (备份: ${BAK}):"
 echo "$DELETED"

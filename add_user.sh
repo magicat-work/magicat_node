@@ -94,6 +94,7 @@ jq --argjson t "$TOK_JSON" --argjson hy "$HY_JSON" --argjson vl "$VL_JSON" \
 "$SINGBOX_BIN" check -c "$TMP"
 chown magicat "$TMP"; chmod 600 "$TMP"
 mv "$TMP" "$SINGBOX_CONF"
+cp "$SINGBOX_CONF" /root/config.json
 
 # 重启失败回滚
 if ! systemctl restart sing-box; then
@@ -103,9 +104,6 @@ if ! systemctl restart sing-box; then
   systemctl restart sing-box
   exit 1
 fi
-
-# 重启成功备份配置
-cp "$SINGBOX_CONF" /root/config.json
 
 # 部署清理脚本
 _clean_tmp="${CLEAN_BIN}.new"
