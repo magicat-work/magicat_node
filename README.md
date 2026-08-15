@@ -6,7 +6,10 @@
 ```bash
 curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/magicat.sh | bash
 ```
-
+## 部署订阅服务
+```bash
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/sub_server.sh | bash
+```
 ---
 
 ## 用户系统
