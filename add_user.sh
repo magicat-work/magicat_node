@@ -11,6 +11,7 @@ SINGBOX_BIN="/usr/local/bin/sing-box"
 SINGBOX_CONF="/etc/sing-box/config.json"
 CLEAN_URL="https://raw.githubusercontent.com/magicat-work/magicat_node/main/clean_user.sh"
 CLEAN_BIN="/usr/local/bin/clean_user.sh"
+ROOT_DOMAIN="magicat.work"
 
 # jq 检查
 if ! command -v jq >/dev/null; then
@@ -52,10 +53,11 @@ for N in "${NAMES[@]}"; do
 done
 [ "${#TOKENS[@]}" -eq 0 ] || [ "${#TOKENS[@]}" -eq "${#NAMES[@]}" ] \
   || { echo "token 与 date 不符"; exit 1; }
-printf '订阅域名: ' >&3
-read -r SUB_DOMAIN <&3 || true
-SUB_DOMAIN="${SUB_DOMAIN//[[:space:]]/}"
-[ -n "$SUB_DOMAIN" ] || { echo "无输入"; exit 1; }
+printf '订阅前缀: ' >&3
+read -r SUB_PREFIX <&3 || true
+SUB_PREFIX="${SUB_PREFIX//[[:space:]]/}"
+[ -n "$SUB_PREFIX" ] || { echo "无输入"; exit 1; }
+SUB_DOMAIN="${SUB_PREFIX}.${ROOT_DOMAIN}"
 exec 3>&-
 
 # 用户参数准备
@@ -94,7 +96,6 @@ jq --argjson t "$TOK_JSON" --argjson hy "$HY_JSON" --argjson vl "$VL_JSON" \
 "$SINGBOX_BIN" check -c "$TMP"
 chown magicat "$TMP"; chmod 600 "$TMP"
 mv "$TMP" "$SINGBOX_CONF"
-cp "$SINGBOX_CONF" /root/config.json
 
 # 重启失败回滚
 if ! systemctl restart sing-box; then
@@ -104,6 +105,7 @@ if ! systemctl restart sing-box; then
   systemctl restart sing-box
   exit 1
 fi
+cp "$SINGBOX_CONF" /root/config.json
 
 # 部署清理脚本
 _clean_tmp="${CLEAN_BIN}.new"
