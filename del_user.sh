@@ -15,14 +15,14 @@ TMP="${SINGBOX_CONF}.new"
 
 # -l: 列出用户
 if [ "$1" = "-l" ]; then
-  jq -r '.inbounds[] | select(has("users")) | .tag as $t | .users[] | "\($t)\t\(.name)"' "$SINGBOX_CONF"
+  jq -r '.inbounds[] | select(has("users")) | .tag as $t | .users[] | "\(($t + " " * 10)[0:10])\(.name)"' "$SINGBOX_CONF"
   exit 0
 fi
 [ "$#" -ge 1 ] || exit 1
 
 # 记下将删除的用户，为空则不动配置不重启
 NAMES_JSON=$(printf '%s\n' "$@" | jq -Rn '[inputs]')
-DELETED=$(jq -r --argjson n "$NAMES_JSON" '.inbounds[] | select(has("users")) | .tag as $t | .users[] | select(.name | IN($n[])) | "  \($t)\t\(.name)"' "$SINGBOX_CONF")
+DELETED=$(jq -r --argjson n "$NAMES_JSON" '.inbounds[] | select(has("users")) | .tag as $t | .users[] | select(.name | IN($n[])) | "  \(($t + " " * 10)[0:10])\(.name)"' "$SINGBOX_CONF")
 [ -n "$DELETED" ] || { echo "无匹配用户"; exit 0; }
 
 # 备份 + 删除
