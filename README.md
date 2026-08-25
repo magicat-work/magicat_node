@@ -4,7 +4,7 @@
 
 ## 部署 Sing-box 节点
 ```bash
-curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/magicat.sh | bash
+curl -Ls https://raw.githubusercontent.com/magicat-work/magicat_node/main/install.sh | bash
 ```
 ## 部署订阅服务
 ```bash

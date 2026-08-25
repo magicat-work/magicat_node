@@ -143,7 +143,13 @@ cat > "${SINGBOX_CONF}.new" << EOF
   ],
   "outbounds": [
     { "type": "direct", "tag": "direct" }
-  ]
+  ],
+  "experimental": {
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "secret": "magicat9090"
+    }
+  }
 }
 EOF
 
